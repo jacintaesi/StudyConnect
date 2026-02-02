@@ -1,0 +1,8 @@
+{
+  "name": "StudyConnect",
+  "description": "A social study app for students to connect, share notes, and learn together in a safe environment.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
