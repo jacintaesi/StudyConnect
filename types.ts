@@ -1,3 +1,5 @@
+export type UserRole = 'STUDENT' | 'ADMIN';
+
 export interface User {
   id: string;
   firstName: string;
@@ -10,6 +12,12 @@ export interface User {
   bio?: string;
   badges?: string[];
   streak?: number;
+  points: number; // New: Gamification points
+  isPublic?: boolean;
+  role: UserRole;
+  warnings: number;
+  isMuted: boolean;
+  isBanned: boolean;
 }
 
 export interface Comment {
@@ -34,6 +42,7 @@ export interface Group {
   lastMessage?: string;
   lastMessageTime?: Date;
   unreadCount?: number;
+  points?: number; // New: Group competition points
 }
 
 export interface StudyRoom {
@@ -59,6 +68,7 @@ export interface Confession {
   content: string;
   timestamp: string;
   likes: number;
+  isLiked?: boolean;
   comments: number;
   school: string;
 }
@@ -72,6 +82,7 @@ export interface Message {
   isSystem?: boolean;
   type: 'text' | 'image' | 'file' | 'gift';
   attachmentUrl?: string;
+  isToxic?: boolean; // New: For blurring content
 }
 
 export interface Post {
@@ -98,6 +109,7 @@ export interface TimetableEntry {
   startTime: string; // "08:00"
   endTime: string; // "10:00"
   color: string;
+  reminderEnabled?: boolean;
 }
 
 export interface Todo {
@@ -108,12 +120,25 @@ export interface Todo {
   dueDate?: string;
 }
 
+export interface Report {
+  id: string;
+  reporterId: string;
+  reporterName: string;
+  offenderName: string; // For mock purposes, usually ID
+  content: string; // The reported message or reason
+  reason: string;
+  status: 'PENDING' | 'RESOLVED' | 'DISMISSED';
+  timestamp: Date;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH';
+}
+
 export enum AppView {
   SPLASH = 'SPLASH',
   TERMS = 'TERMS',
   AUTH = 'AUTH',
   ONBOARDING = 'ONBOARDING',
   MAIN = 'MAIN',
+  ADMIN_PORTAL = 'ADMIN_PORTAL', // New View
 }
 
 export enum MainTab {

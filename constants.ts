@@ -1,4 +1,6 @@
-import { Group, Post, StudyRoom, MarketItem, Confession, TimetableEntry, Todo } from './types';
+import { Group, Post, StudyRoom, MarketItem, Confession, TimetableEntry, Todo, User, Report } from './types';
+
+export const ADMIN_EMAIL = "admin@study.com";
 
 export const SCHOOLS = [
   "University of Ghana",
@@ -21,14 +23,42 @@ export const COURSES = [
 
 export const LEVELS = ["100", "200", "300", "400", "500", "600"];
 
-export const TOXIC_WORDS = ["stupid", "idiot", "hate", "kill", "shut up"];
+export const TOXIC_WORDS = ["stupid", "idiot", "hate", "kill", "shut up", "dumb", "ugly", "fight", "punch"];
 
 export const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+// Gamification Config
+export const LEVEL_THRESHOLDS = [
+    { name: "Fresh Brain 🧠", min: 0, max: 200 },
+    { name: "Sharp Thinker 💡", min: 201, max: 800 },
+    { name: "Mastermind 🚀", min: 801, max: 2000 },
+    { name: "Academic Legend 👑", min: 2001, max: 100000 },
+];
+
+export const BADGES = [
+    { id: 'b1', name: 'Early Bird', icon: '🌅', description: 'Studied before 8 AM' },
+    { id: 'b2', name: 'Helper', icon: '🤝', description: 'Answered 10 questions' },
+    { id: 'b3', name: 'Night Owl', icon: '🦉', description: 'Studied after 11 PM' },
+    { id: 'b4', name: 'Streak Master', icon: '🔥', description: '7 day study streak' },
+    { id: 'b5', name: 'Team Player', icon: '👥', description: 'Active in 3 groups' },
+];
+
+export const MOCK_USERS: User[] = [
+  { id: 'u2', firstName: 'Sarah', lastName: 'Mensah', email: 'sarah@test.com', school: 'University of Ghana', course: 'Computer Engineering', level: '300', avatar: 'https://picsum.photos/seed/sarah/200/200', bio: 'Loves coding, coffee, and calculus.', isPublic: true, role: 'STUDENT', warnings: 0, isMuted: false, isBanned: false, points: 1250, badges: ['b1', 'b4'] },
+  { id: 'u3', firstName: 'Kofi', lastName: 'Boateng', email: 'kofi@test.com', school: 'University of Ghana', course: 'Computer Engineering', level: '300', avatar: 'https://picsum.photos/seed/kofi/200/200', bio: 'Tech enthusiast. Flutter developer.', isPublic: true, role: 'STUDENT', warnings: 1, isMuted: false, isBanned: false, points: 640, badges: ['b2'] },
+  { id: 'u4', firstName: 'Ama', lastName: 'Osei', email: 'ama@test.com', school: 'KNUST', course: 'Medicine', level: '400', avatar: 'https://picsum.photos/seed/ama/200/200', bio: 'Future Surgeon. Study hard!', isPublic: true, role: 'STUDENT', warnings: 0, isMuted: false, isBanned: false, points: 2100, badges: ['b1', 'b3', 'b4'] },
+  { id: 'u5', firstName: 'Michael', lastName: 'Addo', email: 'mike@test.com', school: 'University of Ghana', course: 'Business Administration', level: '200', avatar: 'https://picsum.photos/seed/michael/200/200', bio: 'Finance and Investment.', isPublic: false, role: 'STUDENT', warnings: 0, isMuted: false, isBanned: false, points: 150, badges: [] },
+];
+
+export const MOCK_REPORTS: Report[] = [
+    { id: 'r1', reporterId: 'u2', reporterName: 'Sarah', offenderName: 'Kofi', content: 'He keeps sending spam messages in the group.', reason: 'spam', status: 'PENDING', timestamp: new Date(), severity: 'LOW' },
+    { id: 'r2', reporterId: 'u4', reporterName: 'Ama', offenderName: 'Unknown User', content: 'Inappropriate language used in Study Room.', reason: 'harassment', status: 'PENDING', timestamp: new Date(), severity: 'HIGH' }
+];
+
 export const MOCK_TIMETABLE: TimetableEntry[] = [
-  { id: 't1', courseName: 'Digital Systems', location: 'JQB 23', day: 'Monday', startTime: '10:30', endTime: '12:30', color: 'bg-blue-100 text-blue-800' },
-  { id: 't2', courseName: 'Calculus I', location: 'Math Dept', day: 'Tuesday', startTime: '08:30', endTime: '10:30', color: 'bg-green-100 text-green-800' },
-  { id: 't3', courseName: 'Circuit Theory', location: 'Eng Block B', day: 'Wednesday', startTime: '14:00', endTime: '16:00', color: 'bg-purple-100 text-purple-800' },
+  { id: 't1', courseName: 'Digital Systems', location: 'JQB 23', day: 'Monday', startTime: '10:30', endTime: '12:30', color: 'bg-blue-100 text-blue-800', reminderEnabled: true },
+  { id: 't2', courseName: 'Calculus I', location: 'Math Dept', day: 'Tuesday', startTime: '08:30', endTime: '10:30', color: 'bg-green-100 text-green-800', reminderEnabled: false },
+  { id: 't3', courseName: 'Circuit Theory', location: 'Eng Block B', day: 'Wednesday', startTime: '14:00', endTime: '16:00', color: 'bg-purple-100 text-purple-800', reminderEnabled: true },
 ];
 
 export const MOCK_TODOS: Todo[] = [
@@ -49,8 +79,8 @@ export const MOCK_MARKET_ITEMS: MarketItem[] = [
 ];
 
 export const MOCK_CONFESSIONS: Confession[] = [
-  { id: 'c1', content: 'I have a huge crush on the TA for Digital Systems but I can\'t solve a single circuit. 😭', timestamp: '10m ago', likes: 45, comments: 12, school: 'University of Ghana' },
-  { id: 'c2', content: 'I accidentally walked into a Level 400 lecture thinking it was my L100 class. Sat there for 20 mins confused.', timestamp: '1h ago', likes: 120, comments: 34, school: 'KNUST' },
+  { id: 'c1', content: 'I have a huge crush on the TA for Digital Systems but I can\'t solve a single circuit. 😭', timestamp: '10m ago', likes: 45, isLiked: false, comments: 12, school: 'University of Ghana' },
+  { id: 'c2', content: 'I accidentally walked into a Level 400 lecture thinking it was my L100 class. Sat there for 20 mins confused.', timestamp: '1h ago', likes: 120, isLiked: true, comments: 34, school: 'KNUST' },
 ];
 
 export const MOCK_GROUPS: Group[] = [
@@ -62,7 +92,8 @@ export const MOCK_GROUPS: Group[] = [
     course: 'Computer Engineering',
     image: 'https://picsum.photos/seed/tech/100/100',
     lastMessage: 'Check the pinned post for the schedule.',
-    lastMessageTime: new Date(Date.now() - 1000 * 60 * 5)
+    lastMessageTime: new Date(Date.now() - 1000 * 60 * 5),
+    points: 4500
   },
   {
     id: '2',
@@ -72,7 +103,8 @@ export const MOCK_GROUPS: Group[] = [
     course: 'Mathematics',
     image: 'https://picsum.photos/seed/math/100/100',
     lastMessage: 'Can someone explain chain rule?',
-    lastMessageTime: new Date(Date.now() - 1000 * 60 * 60)
+    lastMessageTime: new Date(Date.now() - 1000 * 60 * 60),
+    points: 12000
   },
   {
     id: '3',
@@ -82,7 +114,8 @@ export const MOCK_GROUPS: Group[] = [
     course: 'Computer Engineering',
     image: 'https://picsum.photos/seed/circuit/100/100',
     lastMessage: 'Lab report due tomorrow!',
-    lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 24)
+    lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 24),
+    points: 2300
   },
   {
     id: 'dm_1',
@@ -108,6 +141,7 @@ export const MOCK_POSTS: Post[] = [
     content: 'Finally finished the final year project! 🎓 The library has been my second home.',
     imageUrl: 'https://picsum.photos/seed/library/600/400',
     likes: 342,
+    isLiked: false,
     comments: 2,
     timestamp: '2h ago',
     type: 'regular',
@@ -123,6 +157,7 @@ export const MOCK_POSTS: Post[] = [
     userAvatar: 'https://picsum.photos/seed/kofi/100/100',
     content: 'Looking for 2 dedicated people to join my Hackathon team for the upcoming tech fair. Must know React or Flutter. 🚀',
     likes: 15,
+    isLiked: true,
     comments: 0,
     timestamp: '4h ago',
     type: 'teammate_request',
@@ -137,6 +172,7 @@ export const MOCK_POSTS: Post[] = [
     content: 'Sunset view from the Commonwealth Hall balcony today. Stunning.',
     imageUrl: 'https://picsum.photos/seed/sunset/600/400',
     likes: 567,
+    isLiked: false,
     comments: 0,
     timestamp: '1d ago',
     type: 'regular',
@@ -149,6 +185,7 @@ export const MOCK_POSTS: Post[] = [
     userAvatar: 'https://picsum.photos/seed/michael/100/100',
     content: 'Starting a study circle for Advanced Thermodynamics. We meet Tuesdays at the Balme Library. Who is in?',
     likes: 42,
+    isLiked: false,
     comments: 0,
     timestamp: '1d ago',
     type: 'teammate_request',

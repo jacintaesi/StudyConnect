@@ -4,11 +4,234 @@ import {
   Paperclip, MoreVertical, Search, MessageCircle, LogOut, Settings, ChevronRight, 
   MapPin, Image as ImageIcon, Heart, Video, Phone, Mic, MicOff, VideoOff, Gift, 
   Plus, Bell, CheckCircle, UserPlus, X, Edit2, ShoppingBag, Map, Ghost, 
-  Smile, AlertTriangle, Clock, Calendar, Award, Play, Pause, Flame, Trash2, CheckSquare, Square
+  Smile, AlertTriangle, Clock, Calendar, Award, Play, Pause, Flame, Trash2, CheckSquare, Square, Info,
+  Mail, Lock, Eye, EyeOff, ArrowRight, Gavel, FileText, Ban, UserX, Flag, Check, XCircle,
+  Zap, Coffee, Brain, Timer, Trophy, Star, Medal
 } from 'lucide-react';
-import { AppView, MainTab, User, Group, Message, Post, Comment, StudyRoom, MarketItem, Confession, TimetableEntry, Todo } from './types';
-import { SCHOOLS, COURSES, LEVELS, MOCK_GROUPS, MOCK_POSTS, MOCK_STUDY_ROOMS, MOCK_MARKET_ITEMS, MOCK_CONFESSIONS, TOXIC_WORDS, DAYS_OF_WEEK, MOCK_TIMETABLE, MOCK_TODOS } from './constants';
-import { ReportModal } from './components/ReportModal';
+import { AppView, MainTab, User, Group, Message, Post, Comment, StudyRoom, MarketItem, Confession, TimetableEntry, Todo, Report } from './types';
+import { SCHOOLS, COURSES, LEVELS, MOCK_GROUPS, MOCK_POSTS, MOCK_STUDY_ROOMS, MOCK_MARKET_ITEMS, MOCK_CONFESSIONS, TOXIC_WORDS, DAYS_OF_WEEK, MOCK_TIMETABLE, MOCK_TODOS, MOCK_USERS, ADMIN_EMAIL, MOCK_REPORTS, LEVEL_THRESHOLDS, BADGES } from './constants';
+
+// --- Modals (Report Modal integrated with App State) ---
+
+interface ReportModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  targetName: string;
+  onSubmitReport: (reason: string, description: string) => void;
+}
+
+const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, targetName, onSubmitReport }) => {
+  const [reason, setReason] = useState('');
+  const [description, setDescription] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmitReport(reason, description);
+    setSubmitted(true);
+    setTimeout(() => {
+        setSubmitted(false);
+        setReason('');
+        setDescription('');
+        onClose();
+    }, 1500);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-slide-up">
+        {!submitted ? (
+          <form onSubmit={handleSubmit} className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-red-600 flex items-center gap-2">
+                <AlertTriangle size={24} />
+                Report Content
+              </h3>
+              <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <p className="text-sm text-gray-600 mb-4">
+              You are reporting <span className="font-bold">{targetName}</span>. 
+              Reports are reviewed by our safety team.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                <select 
+                  required
+                  className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 focus:ring-2 focus:ring-red-500 outline-none"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                >
+                  <option value="">Select a reason</option>
+                  <option value="Harassment">Harassment or Bullying</option>
+                  <option value="Sexual Misconduct">Sexual Misconduct / Assault</option>
+                  <option value="Hate Speech">Hate Speech</option>
+                  <option value="Spam">Spam or Fake Account</option>
+                  <option value="Academic Dishonesty">Academic Dishonesty</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  required
+                  rows={4}
+                  className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 focus:ring-2 focus:ring-red-500 outline-none resize-none"
+                  placeholder="Please describe what happened..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
+
+              <div className="pt-2">
+                <button 
+                  type="submit"
+                  className="w-full bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
+                >
+                  Submit Report
+                </button>
+              </div>
+            </div>
+          </form>
+        ) : (
+          <div className="p-8 flex flex-col items-center text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4 text-green-600">
+              <CheckCircle size={40} />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800 mb-2">Report Received</h3>
+            <p className="text-gray-600 mb-6">
+              Thank you for keeping our community safe.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const CreatePostModal = ({ user, onClose, onCreate }: { user: User, onClose: () => void, onCreate: (content: string, hasImage: boolean) => void }) => {
+    const [content, setContent] = useState('');
+    const [hasImage, setHasImage] = useState(false);
+
+    return (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl animate-slide-up">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-gray-900">Create Post</h3>
+                    <button onClick={onClose}><X className="text-gray-400" /></button>
+                </div>
+                
+                <div className="flex gap-3 mb-4">
+                    <img src={user.avatar} className="w-10 h-10 rounded-full object-cover border border-gray-200" />
+                    <div className="flex-1">
+                        <p className="font-bold text-sm">{user.firstName} {user.lastName}</p>
+                        <p className="text-xs text-gray-500">Public • {user.school}</p>
+                    </div>
+                </div>
+
+                <textarea 
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="Share your campus experience, notes, or ask a question..." 
+                    className="w-full h-32 p-3 bg-gray-50 rounded-xl border border-gray-100 outline-none resize-none focus:ring-2 focus:ring-blue-100 mb-4"
+                />
+
+                {hasImage && (
+                    <div className="relative mb-4">
+                        <img src="https://picsum.photos/seed/temp/400/200" className="w-full h-40 object-cover rounded-xl" />
+                        <button onClick={() => setHasImage(false)} className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full"><X size={14}/></button>
+                    </div>
+                )}
+
+                <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+                    <button onClick={() => setHasImage(!hasImage)} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition ${hasImage ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}>
+                        <ImageIcon size={18} /> Photo
+                    </button>
+                    <button 
+                        onClick={() => onCreate(content, hasImage)}
+                        disabled={!content.trim()}
+                        className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition shadow-lg shadow-blue-200"
+                    >
+                        Post
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const FocusConfigModal = ({ isOpen, onClose, onStart }: { isOpen: boolean, onClose: () => void, onStart: (mins: number) => void }) => {
+    if(!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in-up">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold flex items-center gap-2"><Brain className="text-purple-600" /> Focus Mode</h3>
+                    <button onClick={onClose}><X className="text-gray-400" /></button>
+                </div>
+                <p className="text-gray-600 mb-6 text-sm">Lock social features and distractions to get real work done.</p>
+                
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                    <button onClick={() => onStart(30)} className="flex flex-col items-center justify-center p-4 rounded-2xl bg-purple-50 border-2 border-transparent hover:border-purple-500 transition">
+                        <Zap size={32} className="text-purple-600 mb-2" />
+                        <span className="font-bold text-gray-800">30 Mins</span>
+                        <span className="text-xs text-gray-500">Power Session</span>
+                    </button>
+                    <button onClick={() => onStart(60)} className="flex flex-col items-center justify-center p-4 rounded-2xl bg-blue-50 border-2 border-transparent hover:border-blue-500 transition">
+                        <Timer size={32} className="text-blue-600 mb-2" />
+                        <span className="font-bold text-gray-800">60 Mins</span>
+                        <span className="text-xs text-gray-500">Deep Work</span>
+                    </button>
+                </div>
+                <div className="text-center text-xs text-gray-400 bg-gray-100 p-3 rounded-lg">
+                    ⚠️ Social Feed & Marketplace will be locked.
+                </div>
+            </div>
+        </div>
+    );
+}
+
+const FocusLockedView = ({ endTime, onEndEarly }: { endTime: number, onEndEarly: () => void }) => {
+    const [timeLeft, setTimeLeft] = useState<string>('');
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const diff = endTime - Date.now();
+            if (diff <= 0) {
+                onEndEarly(); // Time up
+                return;
+            }
+            const m = Math.floor(diff / 60000);
+            const s = Math.floor((diff % 60000) / 1000);
+            setTimeLeft(`${m}:${s < 10 ? '0' : ''}${s}`);
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [endTime]);
+
+    return (
+        <div className="h-full flex flex-col items-center justify-center p-8 bg-gray-50 text-center">
+            <div className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                <Lock size={64} className="text-gray-400" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Focus Mode Active</h2>
+            <p className="text-gray-500 mb-8 max-w-xs">This feature is locked to help you concentrate. Keep crushing your goals!</p>
+            
+            <div className="text-5xl font-mono font-bold text-gray-900 mb-10">
+                {timeLeft}
+            </div>
+
+            <button onClick={onEndEarly} className="text-sm text-red-500 font-bold hover:underline">
+                Give up & Exit Focus Mode
+            </button>
+        </div>
+    );
+};
 
 // --- Helper Components ---
 
@@ -43,19 +266,252 @@ const Terms = ({ onAgree, onDecline }: { onAgree: () => void, onDecline: () => v
   );
 };
 
-// --- Timetable & Todo Components ---
+// --- Modals ---
+
+const CreateGroupModal = ({ onClose, onCreate }: { onClose: () => void, onCreate: (data: any) => void }) => {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <form 
+        className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl animate-slide-up"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const fd = new FormData(e.currentTarget);
+          onCreate({
+            name: fd.get('name'),
+            description: fd.get('description'),
+            course: fd.get('course'),
+          });
+        }}
+      >
+         <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold">Create Study Group</h3>
+            <button type="button" onClick={onClose}><X className="text-gray-400" /></button>
+         </div>
+         
+         <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Group Name</label>
+              <input name="name" required className="w-full bg-gray-100 p-3 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Calculus Heroes" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Description</label>
+              <textarea name="description" required className="w-full bg-gray-100 p-3 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" placeholder="What is this group about?" rows={3} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Related Course</label>
+               <select name="course" className="w-full bg-gray-100 p-3 rounded-lg outline-none">
+                  {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
+               </select>
+            </div>
+            <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg mt-2">Create Group</button>
+         </div>
+      </form>
+    </div>
+  );
+};
+
+const PostConfessionModal = ({ onClose, onPost }: { onClose: () => void, onPost: (content: string) => void }) => {
+    const [content, setContent] = useState('');
+    
+    return (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+             <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl animate-slide-up relative overflow-hidden">
+                <Ghost className="absolute -right-4 -top-4 text-purple-100 w-32 h-32 pointer-events-none" />
+                <div className="flex justify-between items-center mb-4 relative z-10">
+                    <h3 className="text-xl font-bold text-gray-900">Post Secretly</h3>
+                    <button onClick={onClose}><X className="text-gray-400" /></button>
+                </div>
+                <textarea 
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="Type your confession here... (It will be anonymous)"
+                    className="w-full bg-purple-50 p-4 rounded-xl h-32 outline-none border border-purple-100 resize-none text-gray-700 placeholder-purple-300 relative z-10 focus:ring-2 focus:ring-purple-500"
+                />
+                <p className="text-xs text-gray-500 mt-2 mb-4 relative z-10 flex items-center gap-1"><Shield size={12}/> Your identity is hidden.</p>
+                <button 
+                    disabled={!content.trim()}
+                    onClick={() => onPost(content)}
+                    className="w-full bg-purple-600 text-white font-bold py-3 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-purple-700 transition relative z-10"
+                >
+                    Post Confession
+                </button>
+             </div>
+        </div>
+    );
+};
+
+const UserProfileModal = ({ user, onClose, onMessage }: { user: User, onClose: () => void, onMessage: () => void }) => {
+  if (!user) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl animate-slide-up">
+            <div className="h-32 bg-gradient-to-r from-blue-500 to-purple-600 relative">
+                 <button onClick={onClose} className="absolute top-4 right-4 bg-black/20 text-white p-2 rounded-full hover:bg-black/30">
+                    <X size={20} />
+                 </button>
+            </div>
+            <div className="px-6 pb-8 -mt-16 flex flex-col items-center">
+                <img src={user.avatar} className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-gray-200 object-cover" />
+                <h2 className="text-2xl font-bold mt-4 text-center">{user.firstName} {user.lastName}</h2>
+                <p className="text-gray-500 text-center">{user.school}</p>
+                <div className="flex gap-2 mt-2 mb-4 justify-center">
+                    <span className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full font-bold">{user.course}</span>
+                    <span className="bg-purple-100 text-purple-700 text-xs px-3 py-1 rounded-full font-bold">Lvl {user.level}</span>
+                </div>
+                
+                <p className="text-center text-gray-700 mb-6 italic">"{user.bio || 'Ready to study!'}"</p>
+
+                {user.isPublic ? (
+                  <button 
+                    onClick={onMessage}
+                    className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition"
+                  >
+                      <MessageCircle size={20} /> Message
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 text-gray-500 bg-gray-100 p-3 rounded-xl">
+                     <Info size={16} />
+                     <span className="text-sm">This profile is private.</span>
+                  </div>
+                )}
+            </div>
+        </div>
+    </div>
+  )
+}
+
+const EditProfileModal = ({ user, onClose, onSave }: { user: User, onClose: () => void, onSave: (u: User) => void }) => {
+    const [firstName, setFirstName] = useState(user.firstName);
+    const [lastName, setLastName] = useState(user.lastName || '');
+    const [bio, setBio] = useState(user.bio || '');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave({ ...user, firstName, lastName, bio });
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl animate-slide-up">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold text-gray-900">Edit Profile</h3>
+                    <button type="button" onClick={onClose}><X className="text-gray-400" /></button>
+                </div>
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">First Name</label>
+                            <input value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 outline-none focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">Last Name</label>
+                            <input value={lastName} onChange={e => setLastName(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 outline-none focus:border-blue-500" />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 mb-1">Bio</label>
+                        <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 outline-none focus:border-blue-500" />
+                    </div>
+                    <button type="submit" className="w-full bg-black text-white font-bold py-3 rounded-xl mt-2">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
+const NotificationsModal = ({ onClose }: { onClose: () => void }) => {
+    const [settings, setSettings] = useState({ push: true, email: false, groups: true });
+    return (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl animate-slide-up">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold text-gray-900">Notifications</h3>
+                    <button onClick={onClose}><X className="text-gray-400" /></button>
+                </div>
+                <div className="space-y-4">
+                    {Object.entries(settings).map(([key, val]) => (
+                        <div key={key} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                            <span className="capitalize font-medium text-gray-700">{key} Notifications</span>
+                            <button onClick={() => setSettings({...settings, [key]: !val})} className={`w-12 h-6 rounded-full p-1 transition-colors ${val ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${val ? 'translate-x-6' : ''}`} />
+                            </button>
+                        </div>
+                    ))}
+                    <button onClick={onClose} className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl mt-4">Done</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const PrivacyModal = ({ onClose }: { onClose: () => void }) => {
+    return (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl animate-slide-up">
+                 <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold text-gray-900">Privacy & Security</h3>
+                    <button onClick={onClose}><X className="text-gray-400" /></button>
+                </div>
+                <div className="space-y-4">
+                    <button className="w-full flex justify-between items-center p-4 bg-gray-50 rounded-xl text-left hover:bg-gray-100">
+                        <div>
+                            <p className="font-bold text-gray-800">Change Password</p>
+                            <p className="text-xs text-gray-500">Last changed 3 months ago</p>
+                        </div>
+                        <ChevronRight size={18} className="text-gray-400" />
+                    </button>
+                    <button className="w-full flex justify-between items-center p-4 bg-gray-50 rounded-xl text-left hover:bg-gray-100">
+                        <div>
+                            <p className="font-bold text-gray-800">Blocked Users</p>
+                            <p className="text-xs text-gray-500">2 users blocked</p>
+                        </div>
+                        <ChevronRight size={18} className="text-gray-400" />
+                    </button>
+                    <div className="p-4 bg-blue-50 rounded-xl">
+                         <p className="text-sm text-blue-800 flex items-center gap-2"><Shield size={16} /> Your data is encrypted and secure.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const TimetableModal = ({ onClose, timetable, onUpdate, semesterEnd, onUpdateSemesterEnd }: any) => {
     const [entry, setEntry] = useState<Partial<TimetableEntry>>({ day: 'Monday', color: 'bg-blue-100 text-blue-800' });
-    
-    const handleAdd = () => {
+    const [editingId, setEditingId] = useState<string | null>(null);
+
+    const handleSave = () => {
         if (!entry.courseName || !entry.startTime || !entry.endTime) return;
-        onUpdate([...timetable, { ...entry, id: `t_${Date.now()}` }]);
-        setEntry({ ...entry, courseName: '', location: '', startTime: '', endTime: '' });
+        
+        if (editingId) {
+            onUpdate(timetable.map((t: TimetableEntry) => t.id === editingId ? { ...t, ...entry } : t));
+        } else {
+            onUpdate([...timetable, { ...entry, id: `t_${Date.now()}` }]);
+        }
+        
+        // Reset form
+        setEntry({ courseName: '', location: '', startTime: '', endTime: '', day: 'Monday', color: 'bg-blue-100 text-blue-800' });
+        setEditingId(null);
     };
 
-    const handleDelete = (id: string) => {
+    const handleEdit = (item: TimetableEntry) => {
+        setEntry(item);
+        setEditingId(item.id);
+    };
+
+    const handleDelete = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent triggering edit
         onUpdate(timetable.filter((t: TimetableEntry) => t.id !== id));
+        if (editingId === id) {
+             setEditingId(null);
+             setEntry({ courseName: '', location: '', startTime: '', endTime: '', day: 'Monday', color: 'bg-blue-100 text-blue-800' });
+        }
+    };
+
+    const cancelEdit = () => {
+        setEditingId(null);
+        setEntry({ courseName: '', location: '', startTime: '', endTime: '', day: 'Monday', color: 'bg-blue-100 text-blue-800' });
     };
 
     return (
@@ -69,11 +525,15 @@ const TimetableModal = ({ onClose, timetable, onUpdate, semesterEnd, onUpdateSem
                 <div className="bg-blue-50 p-4 rounded-xl mb-4">
                     <label className="text-xs font-bold text-blue-700 uppercase mb-1 block">Semester Ends On</label>
                     <input type="date" value={semesterEnd} onChange={(e) => onUpdateSemesterEnd(e.target.value)} className="bg-white p-2 rounded-lg border border-blue-200 w-full text-sm font-bold text-gray-700" />
-                    <p className="text-[10px] text-blue-600 mt-1">Your schedule will automate weekly until this date.</p>
                 </div>
 
-                <div className="space-y-3 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                    <h4 className="font-bold text-sm text-gray-700">Add Weekly Class</h4>
+                <div className="space-y-3 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100 relative">
+                    {editingId && (
+                        <div className="absolute top-2 right-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-bold">
+                            Editing Mode
+                        </div>
+                    )}
+                    <h4 className="font-bold text-sm text-gray-700">{editingId ? 'Edit Class' : 'Add Weekly Class'}</h4>
                     <div className="grid grid-cols-2 gap-2">
                         <input placeholder="Course Name" value={entry.courseName || ''} onChange={e => setEntry({...entry, courseName: e.target.value})} className="p-2 border rounded-lg text-sm" />
                         <input placeholder="Location" value={entry.location || ''} onChange={e => setEntry({...entry, location: e.target.value})} className="p-2 border rounded-lg text-sm" />
@@ -85,19 +545,26 @@ const TimetableModal = ({ onClose, timetable, onUpdate, semesterEnd, onUpdateSem
                         <input type="time" value={entry.startTime || ''} onChange={e => setEntry({...entry, startTime: e.target.value})} className="p-2 border rounded-lg text-sm" />
                         <input type="time" value={entry.endTime || ''} onChange={e => setEntry({...entry, endTime: e.target.value})} className="p-2 border rounded-lg text-sm" />
                     </div>
-                    <button onClick={handleAdd} className="w-full bg-black text-white py-2 rounded-lg font-bold text-sm">Add to Schedule</button>
+                    <div className="flex gap-2">
+                        {editingId && <button onClick={cancelEdit} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg font-bold text-sm">Cancel</button>}
+                        <button onClick={handleSave} className="flex-1 bg-black text-white py-2 rounded-lg font-bold text-sm">{editingId ? 'Update Class' : 'Add to Schedule'}</button>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-2">
                     {timetable.length === 0 && <p className="text-center text-gray-400 text-sm">No classes added yet.</p>}
                     {timetable.map((t: TimetableEntry) => (
-                        <div key={t.id} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
+                        <div 
+                            key={t.id} 
+                            onClick={() => handleEdit(t)}
+                            className={`flex justify-between items-center p-3 rounded-lg border cursor-pointer hover:border-blue-300 transition ${t.id === editingId ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500' : 'bg-gray-50 border-gray-100'}`}
+                        >
                             <div>
                                 <p className="font-bold text-sm">{t.courseName}</p>
                                 <p className="text-xs text-gray-500">{t.day} • {t.startTime} - {t.endTime}</p>
                                 <p className="text-xs text-blue-600 flex items-center gap-1"><MapPin size={10} /> {t.location}</p>
                             </div>
-                            <button onClick={() => handleDelete(t.id)} className="text-red-500 p-2"><Trash2 size={16} /></button>
+                            <button onClick={(e) => handleDelete(t.id, e)} className="text-red-500 p-2 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
                         </div>
                     ))}
                 </div>
@@ -106,7 +573,7 @@ const TimetableModal = ({ onClose, timetable, onUpdate, semesterEnd, onUpdateSem
     );
 };
 
-const ClassDetailModal = ({ entry, onClose, todos, onUpdateTodos }: { entry: TimetableEntry, onClose: () => void, todos: Todo[], onUpdateTodos: (t: Todo[]) => void }) => {
+const ClassDetailModal = ({ entry, onClose, todos, onUpdateTodos, onToggleReminder }: { entry: TimetableEntry, onClose: () => void, todos: Todo[], onUpdateTodos: (t: Todo[]) => void, onToggleReminder: (id: string) => void }) => {
     const [task, setTask] = useState('');
     const classTodos = todos.filter(t => t.courseName === entry.courseName);
     
@@ -141,15 +608,17 @@ const ClassDetailModal = ({ entry, onClose, todos, onUpdateTodos }: { entry: Tim
                     <button onClick={onClose} className="bg-gray-100 p-2 rounded-full"><X size={20} /></button>
                 </div>
 
-                <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 mb-6 flex items-start gap-3">
-                    <Bell className="text-yellow-600 shrink-0 mt-1" size={20} />
+                <div className={`p-4 rounded-xl border mb-6 flex items-start gap-3 transition-colors ${entry.reminderEnabled ? 'bg-yellow-50 border-yellow-100' : 'bg-gray-50 border-gray-100'}`}>
+                    <Bell className={`shrink-0 mt-1 ${entry.reminderEnabled ? 'text-yellow-600' : 'text-gray-400'}`} size={20} />
                     <div>
-                        <p className="font-bold text-yellow-800 text-sm">Class Reminder</p>
-                        <p className="text-xs text-yellow-700">You will be notified 15 mins before this class starts based on your location.</p>
+                        <p className={`font-bold text-sm ${entry.reminderEnabled ? 'text-yellow-800' : 'text-gray-700'}`}>Class Reminder</p>
+                        <p className={`text-xs ${entry.reminderEnabled ? 'text-yellow-700' : 'text-gray-500'}`}>
+                           {entry.reminderEnabled ? 'You will be notified 15 mins before this class starts.' : 'Notifications are disabled for this class.'}
+                        </p>
                     </div>
                     <div className="ml-auto">
                         <label className="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" checked readOnly className="sr-only peer" />
+                            <input type="checkbox" checked={entry.reminderEnabled || false} onChange={() => onToggleReminder(entry.id)} className="sr-only peer" />
                             <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
                     </div>
@@ -178,8 +647,6 @@ const ClassDetailModal = ({ entry, onClose, todos, onUpdateTodos }: { entry: Tim
         </div>
     );
 };
-
-// --- New Features Components ---
 
 const CommentModal = ({ post, currentUser, onClose, onUpdatePost }: { post: Post, currentUser: User, onClose: () => void, onUpdatePost: (p: Post) => void }) => {
   const [comments, setComments] = useState<Comment[]>(post.commentsList || []);
@@ -253,6 +720,141 @@ const CommentModal = ({ post, currentUser, onClose, onUpdatePost }: { post: Post
       </div>
     </div>
   );
+};
+
+// --- Sub Views ---
+
+const AdminPortal = ({ 
+    onLogout, 
+    reports, 
+    onDismissReport, 
+    onBanUser,
+    onWarnReporter 
+  }: { 
+    onLogout: () => void, 
+    reports: Report[], 
+    onDismissReport: (id: string) => void,
+    onBanUser: (id: string, reportId: string) => void,
+    onWarnReporter: (id: string, reportId: string) => void
+  }) => {
+    
+    return (
+        <div className="h-full flex flex-col bg-gray-900 text-white overflow-hidden">
+            <header className="p-4 bg-gray-800 shadow-md flex justify-between items-center border-b border-gray-700">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
+                        <Gavel size={20} />
+                    </div>
+                    <div>
+                        <h1 className="font-bold text-lg">Admin Portal</h1>
+                        <p className="text-xs text-gray-400">Moderation Dashboard</p>
+                    </div>
+                </div>
+                <button onClick={onLogout} className="p-2 hover:bg-gray-700 rounded-full transition"><LogOut size={20} /></button>
+            </header>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-800 p-4 rounded-xl border border-gray-700">
+                        <h3 className="text-gray-400 text-xs font-bold uppercase">Pending Reports</h3>
+                        <p className="text-3xl font-bold mt-1 text-yellow-500">{reports.length}</p>
+                    </div>
+                    <div className="bg-gray-800 p-4 rounded-xl border border-gray-700">
+                        <h3 className="text-gray-400 text-xs font-bold uppercase">Action Required</h3>
+                        <p className="text-3xl font-bold mt-1 text-red-500">{reports.filter(r => r.severity === 'HIGH').length}</p>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <h2 className="font-bold text-lg flex items-center gap-2"><FileText className="text-blue-400" /> Active Reports</h2>
+                    
+                    {reports.length === 0 ? (
+                        <div className="text-center p-8 bg-gray-800 rounded-xl border border-gray-700 text-gray-500">
+                            <CheckCircle size={48} className="mx-auto mb-4 opacity-50" />
+                            <p>All clean! No pending reports.</p>
+                        </div>
+                    ) : (
+                        reports.map(report => (
+                            <div key={report.id} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                                <div className="p-4 border-b border-gray-700 flex justify-between items-start">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${report.severity === 'HIGH' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                                                {report.severity}
+                                            </span>
+                                            <span className="text-xs text-gray-400">{report.timestamp.toLocaleDateString()}</span>
+                                        </div>
+                                        <h3 className="font-bold text-base text-gray-200">Reason: {report.reason}</h3>
+                                    </div>
+                                    <AlertTriangle className="text-red-500" size={20} />
+                                </div>
+                                
+                                <div className="p-4 bg-gray-900/50">
+                                    <p className="text-xs text-gray-500 mb-1">Reported Content:</p>
+                                    <p className="text-sm text-gray-300 italic">"{report.content}"</p>
+                                </div>
+
+                                <div className="p-4 grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <span className="text-gray-500">Offender:</span> <span className="text-white font-bold">{report.offenderName}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-500">Reporter:</span> <span className="text-white font-bold">{report.reporterName}</span>
+                                    </div>
+                                </div>
+
+                                <div className="p-3 bg-gray-800 border-t border-gray-700 flex gap-2">
+                                    <button 
+                                        onClick={() => onDismissReport(report.id)}
+                                        className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-bold transition"
+                                    >
+                                        Dismiss
+                                    </button>
+                                    <button 
+                                        onClick={() => onWarnReporter(report.reporterId, report.id)}
+                                        className="flex-1 py-2 bg-orange-900/50 text-orange-400 hover:bg-orange-900/70 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1"
+                                    >
+                                        <XCircle size={12} /> False Report
+                                    </button>
+                                    <button 
+                                        onClick={() => onBanUser('offender_id', report.id)}
+                                        className="flex-1 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1"
+                                    >
+                                        <Ban size={12} /> Ban User
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const SuggestedConnections = ({ currentUser, users, onConnect }: { currentUser: User, users: User[], onConnect: (u: User) => void }) => {
+    // Basic recommendation logic: same school and course
+    const suggestions = users.filter(u => u.id !== currentUser.id && u.school === currentUser.school && u.course === currentUser.course);
+
+    if (suggestions.length === 0) return null;
+
+    return (
+        <div className="mb-6">
+            <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2 px-1"><UserPlus size={18} /> Classmates & Suggestions</h3>
+            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar px-1">
+                {suggestions.map(u => (
+                    <div key={u.id} className="flex-shrink-0 w-36 bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center text-center cursor-pointer hover:shadow-md transition" onClick={() => onConnect(u)}>
+                        <img src={u.avatar} className="w-16 h-16 rounded-full object-cover mb-2 border-2 border-blue-50" />
+                        <h4 className="font-bold text-sm text-gray-900 truncate w-full">{u.firstName} {u.lastName}</h4>
+                        <p className="text-[10px] text-gray-500 mb-3">{u.level} Level</p>
+                        <button className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full font-bold w-full">View Profile</button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 };
 
 const StudyRoomView = ({ rooms }: { rooms: StudyRoom[] }) => {
@@ -357,13 +959,13 @@ const MarketplaceView = ({ items, onContact }: { items: MarketItem[], onContact:
    </div>
 );
 
-const ConfessionView = ({ confessions }: { confessions: Confession[] }) => (
+const ConfessionView = ({ confessions, onPostClick, onLike }: { confessions: Confession[], onPostClick: () => void, onLike: (id: string) => void }) => (
     <div className="p-4 space-y-4 bg-gray-50 min-h-full">
         <div className="bg-purple-600 p-6 rounded-2xl text-white shadow-lg relative overflow-hidden mb-6">
             <Ghost className="absolute -right-4 -bottom-4 opacity-20 w-32 h-32" />
             <h2 className="font-bold text-xl relative z-10">Confession Box</h2>
             <p className="text-purple-100 text-sm relative z-10">Anonymous. Safe. Unfiltered.</p>
-            <button className="mt-4 bg-white text-purple-600 px-4 py-2 rounded-lg font-bold text-sm relative z-10">Post Confession</button>
+            <button onClick={onPostClick} className="mt-4 bg-white text-purple-600 px-4 py-2 rounded-lg font-bold text-sm relative z-10 active:scale-95 transition">Post Confession</button>
         </div>
         {confessions.map(conf => (
             <div key={conf.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
@@ -371,8 +973,10 @@ const ConfessionView = ({ confessions }: { confessions: Confession[] }) => (
                 <div className="flex justify-between items-center mt-4 text-xs text-gray-500 border-t pt-3">
                     <span>{conf.school} • {conf.timestamp}</span>
                     <div className="flex gap-3">
-                        <span className="flex items-center gap-1"><Heart size={12} /> {conf.likes}</span>
-                        <span className="flex items-center gap-1"><MessageCircle size={12} /> {conf.comments}</span>
+                        <button onClick={() => onLike(conf.id)} className={`flex items-center gap-1 transition ${conf.isLiked ? 'text-red-500 font-bold' : 'text-gray-500 hover:text-red-500'}`}>
+                            <Heart size={14} fill={conf.isLiked ? "currentColor" : "none"} /> {conf.likes}
+                        </button>
+                        <span className="flex items-center gap-1"><MessageCircle size={14} /> {conf.comments}</span>
                     </div>
                 </div>
             </div>
@@ -380,136 +984,119 @@ const ConfessionView = ({ confessions }: { confessions: Confession[] }) => (
     </div>
 );
 
-// --- Main App ---
+// --- Gamification Components ---
 
-const App = () => {
-  const [view, setView] = useState<AppView>(AppView.SPLASH);
-  const [currentTab, setCurrentTab] = useState<MainTab>(MainTab.HOME);
-  const [user, setUser] = useState<User | null>(null);
-  
-  // Data State
-  const [groups, setGroups] = useState<Group[]>(MOCK_GROUPS);
-  const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
-  const [activeGroup, setActiveGroup] = useState<Group | null>(null);
-  const [messagesStore, setMessagesStore] = useState<Record<string, Message[]>>({ '1': [], '2': [], '3': [], 'dm_1': [] });
-  const [notifications, setNotifications] = useState(5);
-  
-  // Timetable State
-  const [timetable, setTimetable] = useState<TimetableEntry[]>(MOCK_TIMETABLE);
-  const [semesterEnd, setSemesterEnd] = useState<string>('2024-12-20');
-  const [todos, setTodos] = useState<Todo[]>(MOCK_TODOS);
+const LevelProgressCard = ({ user }: { user: User }) => {
+    // Find current level based on points
+    const currentLevel = LEVEL_THRESHOLDS.find(l => user.points >= l.min && user.points <= l.max) || LEVEL_THRESHOLDS[0];
+    const nextLevel = LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.indexOf(currentLevel) + 1] || currentLevel;
+    
+    const progress = Math.min(100, Math.max(0, ((user.points - currentLevel.min) / (currentLevel.max - currentLevel.min)) * 100));
 
-  // Modals & UI
-  const [commentPost, setCommentPost] = useState<Post | null>(null);
-  const [reportModalOpen, setReportModalOpen] = useState(false);
-  const [reportTarget, setReportTarget] = useState('');
-  const [timetableModalOpen, setTimetableModalOpen] = useState(false);
-  const [activeClassEntry, setActiveClassEntry] = useState<TimetableEntry | null>(null);
-
-  // Handlers
-  const handleLogin = (e: React.FormEvent) => { e.preventDefault(); setUser({ id: 'u1', firstName: 'Kwame', email: 'kwame@u.edu', school: 'University of Ghana', course: 'Computer Engineering', level: '300', avatar: 'https://picsum.photos/seed/kwame/200/200', streak: 12 }); setView(AppView.MAIN); };
-  
-  const handleSendMessage = (groupId: string, text: string, type: 'text'|'gift' = 'text') => {
-      // Toxic Check
-      if (TOXIC_WORDS.some(w => text.toLowerCase().includes(w))) {
-          alert("⚠️ Message blocked: Toxic language detected. Please be respectful.");
-          return;
-      }
-
-      const newMessage: Message = { id: `msg_${Date.now()}`, senderId: user!.id, senderName: user!.firstName, text, type, timestamp: new Date() };
-      setMessagesStore(prev => ({ ...prev, [groupId]: [...(prev[groupId] || []), newMessage] }));
-      setGroups(groups.map(g => g.id === groupId ? { ...g, lastMessage: type === 'gift' ? 'Sent a gift' : text, lastMessageTime: new Date() } : g));
-  };
-
-  const handleUpdatePost = (updatedPost: Post) => {
-      setPosts(posts.map(p => p.id === updatedPost.id ? updatedPost : p));
-      setCommentPost(updatedPost); // Keep modal synced
-  };
-
-  const handleStartChat = (targetId: string) => {
-      const targetUser = { id: targetId, firstName: 'Seller', avatar: '' }; // Mock lookup
-      // Simplified logic for brevity
-      let dm = groups.find(g => g.isDm && g.dmUserId === targetId);
-      if (!dm) {
-          dm = { id: `dm_${Date.now()}`, name: 'Seller', description: 'Marketplace Chat', memberCount: 2, course: 'General', image: 'https://picsum.photos/seed/seller/100/100', isDm: true, dmUserId: targetId, lastMessage: 'Hi, is this available?', lastMessageTime: new Date() };
-          setGroups([dm, ...groups]);
-      }
-      setActiveGroup(dm);
-      setCurrentTab(MainTab.STUDY); // Switch to where chat is
-  };
-
-  // Views
-  if (view === AppView.SPLASH) return <Splash onComplete={() => setView(AppView.TERMS)} />;
-  if (view === AppView.TERMS) return <Terms onAgree={() => setView(AppView.AUTH)} onDecline={() => setView(AppView.SPLASH)} />;
-  if (view === AppView.AUTH) return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-          <div className="w-full max-w-md">
-              <h2 className="text-3xl font-bold mb-6 text-center">Welcome Back</h2>
-              <form onSubmit={handleLogin} className="space-y-4">
-                  <input type="email" placeholder="Email" required className="w-full p-3 border rounded-xl" />
-                  <input type="password" placeholder="Password" required className="w-full p-3 border rounded-xl" />
-                  <button className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl">Login</button>
-              </form>
-          </div>
-      </div>
-  );
-
-  const renderContent = () => {
-      if (activeGroup) return <GroupChatView group={activeGroup} messages={messagesStore[activeGroup.id] || []} onSendMessage={handleSendMessage} onBack={() => setActiveGroup(null)} currentUser={user!} onReport={(n: string) => { setReportTarget(n); setReportModalOpen(true); }} />;
-      
-      switch(currentTab) {
-          case MainTab.HOME: return <HomeView user={user!} timetable={timetable} onManageTimetable={() => setTimetableModalOpen(true)} onClassClick={setActiveClassEntry} semesterEnd={semesterEnd} />;
-          case MainTab.STUDY: return <StudyHubView groups={groups} onGroupClick={setActiveGroup} />;
-          case MainTab.SOCIAL: return <SocialHubView posts={posts} currentUser={user!} onComment={(p) => setCommentPost(p)} />;
-          case MainTab.CAMPUS: return <CampusHubView onContact={handleStartChat} />;
-          case MainTab.PROFILE: return <ProfileView user={user!} onLogout={() => setView(AppView.AUTH)} />;
-          default: return <div>Error</div>;
-      }
-  };
-
-  return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-        <ReportModal isOpen={reportModalOpen} onClose={() => setReportModalOpen(false)} targetName={reportTarget} />
-        {commentPost && <CommentModal post={commentPost} currentUser={user!} onClose={() => setCommentPost(null)} onUpdatePost={handleUpdatePost} />}
-        {timetableModalOpen && <TimetableModal onClose={() => setTimetableModalOpen(false)} timetable={timetable} onUpdate={setTimetable} semesterEnd={semesterEnd} onUpdateSemesterEnd={setSemesterEnd} />}
-        {activeClassEntry && <ClassDetailModal entry={activeClassEntry} onClose={() => setActiveClassEntry(null)} todos={todos} onUpdateTodos={setTodos} />}
-
-        <div className="flex-1 overflow-hidden relative">{renderContent()}</div>
-        
-        {!activeGroup && (
-            <nav className="bg-white border-t border-gray-200 pb-safe pt-2 px-2 shadow-sm z-40">
-                <div className="flex justify-between items-center max-w-md mx-auto">
-                    <NavIcon icon={<HomeIcon />} label="Home" active={currentTab === MainTab.HOME} onClick={() => setCurrentTab(MainTab.HOME)} />
-                    <NavIcon icon={<BookOpen />} label="Study" active={currentTab === MainTab.STUDY} onClick={() => setCurrentTab(MainTab.STUDY)} />
-                    <NavIcon icon={<Users />} label="Social" active={currentTab === MainTab.SOCIAL} onClick={() => setCurrentTab(MainTab.SOCIAL)} />
-                    <NavIcon icon={<MapPin />} label="Campus" active={currentTab === MainTab.CAMPUS} onClick={() => setCurrentTab(MainTab.CAMPUS)} />
-                    <NavIcon icon={<UserIcon />} label="Profile" active={currentTab === MainTab.PROFILE} onClick={() => setCurrentTab(MainTab.PROFILE)} />
-                </div>
-            </nav>
-        )}
-    </div>
-  );
+    return (
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6">
+            <div className="flex justify-between items-center mb-2">
+                <h3 className="font-bold text-gray-800 text-sm">{currentLevel.name}</h3>
+                <span className="text-xs text-blue-600 font-bold">{user.points} pts</span>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-2.5 mb-2">
+                <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+            </div>
+            <div className="flex justify-between text-[10px] text-gray-400">
+                <span>Current Level</span>
+                <span>Next: {nextLevel.name}</span>
+            </div>
+        </div>
+    );
 };
 
-// --- Sub Views ---
+const BadgesDisplay = ({ badgeIds }: { badgeIds: string[] }) => {
+    const userBadges = BADGES.filter(b => badgeIds.includes(b.id));
 
-const NavIcon = ({ icon, label, active, onClick }: any) => (
-    <button onClick={onClick} className={`flex flex-col items-center gap-1 p-2 w-16 transition-all ${active ? 'text-blue-600 -translate-y-1' : 'text-gray-400'}`}>
-        {React.cloneElement(icon, { size: 24, strokeWidth: active ? 2.5 : 2 })}
-        <span className="text-[10px] font-medium">{label}</span>
-    </button>
-);
+    return (
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mt-4">
+            <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2"><Medal size={18} className="text-yellow-500" /> Badges & Achievements</h3>
+            {userBadges.length === 0 ? (
+                <p className="text-sm text-gray-400 italic">No badges earned yet. Start studying!</p>
+            ) : (
+                <div className="grid grid-cols-4 gap-4">
+                    {userBadges.map(badge => (
+                        <div key={badge.id} className="flex flex-col items-center text-center">
+                            <div className="w-12 h-12 bg-yellow-50 rounded-full flex items-center justify-center text-2xl mb-1 border border-yellow-100 shadow-sm">
+                                {badge.icon}
+                            </div>
+                            <span className="text-[10px] font-bold text-gray-700 leading-tight">{badge.name}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
 
-const HomeView = ({ user, timetable, onManageTimetable, onClassClick, semesterEnd }: { user: User, timetable: TimetableEntry[], onManageTimetable: () => void, onClassClick: (t: TimetableEntry) => void, semesterEnd: string }) => {
-    const todayIndex = new Date().getDay(); // 0 is Sunday
-    // Adjust logic: DAYS_OF_WEEK is Mon-Sun. new Date().getDay() returns 0 for Sunday.
-    // Map Sunday (0) to index 6, Monday (1) to 0, etc.
+const LeaderboardView = ({ users, groups }: { users: User[], groups: Group[] }) => {
+    const [filter, setFilter] = useState<'students' | 'teams'>('students');
+    
+    // Sort logic
+    const topStudents = [...users].sort((a, b) => b.points - a.points);
+    const topTeams = [...groups].sort((a, b) => (b.points || 0) - (a.points || 0));
+
+    return (
+        <div className="p-4 space-y-4">
+            <div className="flex bg-gray-100 p-1 rounded-xl mb-2">
+                <button onClick={() => setFilter('students')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${filter === 'students' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>Students</button>
+                <button onClick={() => setFilter('teams')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${filter === 'teams' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>Study Teams</button>
+            </div>
+
+            <div className="space-y-3">
+                {filter === 'students' ? (
+                    topStudents.map((u, idx) => (
+                        <div key={u.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center gap-3">
+                            <div className={`w-8 h-8 flex items-center justify-center font-bold rounded-full ${idx < 3 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'}`}>
+                                {idx + 1}
+                            </div>
+                            <img src={u.avatar} className="w-10 h-10 rounded-full object-cover" />
+                            <div className="flex-1">
+                                <h4 className="font-bold text-sm text-gray-900">{u.firstName} {u.lastName}</h4>
+                                <p className="text-[10px] text-gray-500">{u.level} Level • {u.school}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="font-bold text-blue-600 text-sm">{u.points}</p>
+                                <p className="text-[10px] text-gray-400">pts</p>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                     topTeams.map((g, idx) => (
+                        <div key={g.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center gap-3">
+                            <div className={`w-8 h-8 flex items-center justify-center font-bold rounded-full ${idx < 3 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'}`}>
+                                {idx + 1}
+                            </div>
+                            <img src={g.image} className="w-10 h-10 rounded-full object-cover" />
+                            <div className="flex-1">
+                                <h4 className="font-bold text-sm text-gray-900">{g.name}</h4>
+                                <p className="text-[10px] text-gray-500">{g.memberCount} Members</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="font-bold text-blue-600 text-sm">{g.points || 0}</p>
+                                <p className="text-[10px] text-gray-400">pts</p>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+    )
+}
+
+const HomeView = ({ user, timetable, onManageTimetable, onClassClick, semesterEnd, suggestions, onConnect, onStartFocus }: any) => {
+    const todayIndex = new Date().getDay(); 
     const dayMap = [6, 0, 1, 2, 3, 4, 5];
     const todayName = DAYS_OF_WEEK[dayMap[todayIndex]];
     
     const todaysClasses = timetable
-        .filter(t => t.day === todayName)
-        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+        .filter((t: TimetableEntry) => t.day === todayName)
+        .sort((a: TimetableEntry, b: TimetableEntry) => a.startTime.localeCompare(b.startTime));
 
     return (
         <div className="h-full overflow-y-auto p-4 pb-20 no-scrollbar space-y-6">
@@ -523,6 +1110,19 @@ const HomeView = ({ user, timetable, onManageTimetable, onClassClick, semesterEn
                 </div>
             </header>
 
+            <LevelProgressCard user={user} />
+
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-5 text-white shadow-lg flex justify-between items-center relative overflow-hidden">
+                <div className="relative z-10">
+                    <h3 className="font-bold text-lg mb-1">Focus Mode</h3>
+                    <p className="text-purple-100 text-xs mb-3">Lock distractions & boost productivity.</p>
+                    <button onClick={onStartFocus} className="bg-white text-purple-600 px-4 py-2 rounded-lg text-xs font-bold shadow-md hover:bg-gray-100 transition">Start Session</button>
+                </div>
+                <Brain size={64} className="text-white/20 absolute -right-4 -bottom-4" />
+            </div>
+
+            <SuggestedConnections currentUser={user} users={suggestions} onConnect={onConnect} />
+            
             <MoodTracker />
 
             <div className="space-y-2">
@@ -533,7 +1133,7 @@ const HomeView = ({ user, timetable, onManageTimetable, onClassClick, semesterEn
                 
                 {todaysClasses.length > 0 ? (
                     <div className="grid gap-3">
-                        {todaysClasses.map(t => (
+                        {todaysClasses.map((t: TimetableEntry) => (
                             <div key={t.id} onClick={() => onClassClick(t)} className={`p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center cursor-pointer hover:opacity-90 transition ${t.color}`}>
                                 <div>
                                     <h4 className="font-bold text-base">{t.courseName}</h4>
@@ -564,39 +1164,29 @@ const HomeView = ({ user, timetable, onManageTimetable, onClassClick, semesterEn
                     {semesterEnd ? new Date(semesterEnd).toLocaleDateString() : 'Not Set'}
                 </div>
             </div>
-
-            <div>
-                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Award size={18} /> Upcoming Deadlines</h3>
-                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
-                    <div className="bg-red-100 text-red-600 w-12 h-12 rounded-lg flex flex-col items-center justify-center font-bold text-xs leading-none">
-                        <span className="text-lg">14</span><span>OCT</span>
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-gray-900">Lab Report Submission</h4>
-                        <p className="text-xs text-gray-500">Computer Engineering • 11:59 PM</p>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 };
 
-const StudyHubView = ({ groups, onGroupClick }: any) => {
-    const [tab, setTab] = useState<'groups'|'rooms'>('groups');
+const StudyHubView = ({ groups, onGroupClick, onCreateGroup }: any) => {
+    const [tab, setTab] = useState<'groups'|'rooms'|'leaderboard'>('groups');
     return (
         <div className="h-full flex flex-col bg-gray-50">
             <div className="p-4 bg-white shadow-sm z-10 sticky top-0">
                 <div className="flex bg-gray-100 p-1 rounded-xl mb-2">
-                    <button onClick={() => setTab('groups')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${tab === 'groups' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>Study Groups</button>
-                    <button onClick={() => setTab('rooms')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${tab === 'rooms' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>Silent Rooms</button>
+                    <button onClick={() => setTab('groups')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${tab === 'groups' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>Groups</button>
+                    <button onClick={() => setTab('rooms')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${tab === 'rooms' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>Rooms</button>
+                    <button onClick={() => setTab('leaderboard')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${tab === 'leaderboard' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>Leaderboard</button>
                 </div>
             </div>
             <div className="flex-1 overflow-y-auto pb-24 no-scrollbar">
                 {tab === 'rooms' ? (
                     <StudyRoomView rooms={MOCK_STUDY_ROOMS} />
+                ) : tab === 'leaderboard' ? (
+                    <LeaderboardView users={MOCK_USERS} groups={groups} />
                 ) : (
                     <div className="p-4 space-y-3">
-                        <button className="w-full p-4 border-2 border-dashed border-gray-300 rounded-2xl flex items-center justify-center gap-2 text-gray-500 font-bold hover:bg-gray-100 transition mb-4"><Plus size={20} /> Create New Group</button>
+                        <button onClick={onCreateGroup} className="w-full p-4 border-2 border-dashed border-gray-300 rounded-2xl flex items-center justify-center gap-2 text-gray-500 font-bold hover:bg-gray-100 transition mb-4"><Plus size={20} /> Create New Group</button>
                         {groups.map((group: Group) => (
                             <div key={group.id} onClick={() => onGroupClick(group)} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-4 cursor-pointer hover:shadow-md transition">
                                 <div className="relative"><img src={group.image} className="w-16 h-16 rounded-xl object-cover bg-gray-200" /></div>
@@ -613,127 +1203,723 @@ const StudyHubView = ({ groups, onGroupClick }: any) => {
     );
 };
 
-const SocialHubView = ({ posts, currentUser, onComment }: any) => {
-    const [viewMode, setViewMode] = useState<'feed'|'confessions'>('feed');
-    return (
-        <div className="h-full flex flex-col bg-gray-50">
-             <div className="p-4 bg-white shadow-sm z-10 flex justify-between items-center sticky top-0">
-                <div className="flex gap-4 text-sm font-bold text-gray-400">
-                    <button onClick={() => setViewMode('feed')} className={`transition ${viewMode === 'feed' ? 'text-black text-lg' : ''}`}>Experience</button>
-                    <button onClick={() => setViewMode('confessions')} className={`transition ${viewMode === 'confessions' ? 'text-black text-lg' : ''}`}>Confessions</button>
-                </div>
-                <button className="bg-black text-white p-2 rounded-full"><Plus size={20} /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto pb-24 no-scrollbar">
-                {viewMode === 'confessions' ? (
-                    <ConfessionView confessions={MOCK_CONFESSIONS} />
-                ) : (
-                    <div className="p-4 space-y-6">
-                        {posts.map((post: Post) => (
-                            <div key={post.id} className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
-                                <div className="p-4 flex items-center gap-3">
-                                    <img src={post.userAvatar} className="w-10 h-10 rounded-full object-cover" />
-                                    <div><p className="font-bold text-sm">{post.userName}</p><p className="text-xs text-gray-400">{post.timestamp}</p></div>
-                                </div>
-                                <div className="px-4 pb-2"><p className="text-gray-800 text-sm leading-relaxed">{post.content}</p></div>
-                                {post.imageUrl && <div className="mt-2 aspect-video bg-gray-100"><img src={post.imageUrl} className="w-full h-full object-cover" /></div>}
-                                <div className="p-4 pt-3 flex items-center gap-6 text-gray-500 border-t border-gray-50 mt-2">
-                                    <button className="flex items-center gap-2 hover:text-red-500"><Heart size={20} /><span className="text-xs">{post.likes}</span></button>
-                                    <button onClick={() => onComment(post)} className="flex items-center gap-2 hover:text-blue-500"><MessageCircle size={20} /><span className="text-xs">{post.comments}</span></button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
+// --- Added Views ---
 
-const CampusHubView = ({ onContact }: any) => {
-    const [tab, setTab] = useState<'market'|'map'>('market');
-    return (
-        <div className="h-full flex flex-col bg-gray-50">
-             <div className="p-4 bg-white shadow-sm z-10 sticky top-0">
-                <div className="flex bg-gray-100 p-1 rounded-xl">
-                    <button onClick={() => setTab('market')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${tab === 'market' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>Marketplace</button>
-                    <button onClick={() => setTab('map')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${tab === 'map' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>Map & Spots</button>
-                </div>
-            </div>
-            <div className="flex-1 overflow-y-auto pb-24 no-scrollbar">
-                {tab === 'market' ? <MarketplaceView items={MOCK_MARKET_ITEMS} onContact={onContact} /> : <div className="p-10 text-center text-gray-500"><Map className="w-16 h-16 mx-auto mb-4 opacity-20" />Map Coming Soon</div>}
-            </div>
-        </div>
-    );
-};
-
-const ProfileView = ({ user, onLogout }: any) => (
-  <div className="h-full bg-gray-50 overflow-y-auto pb-24">
-    <div className="bg-white p-8 flex flex-col items-center border-b border-gray-200">
-      <div className="w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-blue-500 to-purple-500 mb-4"><img src={user.avatar} className="w-full h-full rounded-full border-4 border-white object-cover" /></div>
-      <h2 className="text-2xl font-bold text-gray-900">{user.firstName}</h2>
-      <p className="text-blue-600 font-medium">{user.school}</p>
-      <div className="flex gap-2 mt-4">
-         <button className="bg-red-50 text-red-600 px-6 py-2 rounded-full font-bold text-sm flex items-center gap-2 border border-red-100 shadow-sm hover:bg-red-100"><AlertTriangle size={16} /> SOS Alert</button>
-      </div>
-    </div>
-    <div className="p-6 space-y-4">
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <button className="w-full flex items-center justify-between p-4 hover:bg-gray-50 border-b border-gray-100"><div className="flex items-center gap-3"><Settings size={20} className="text-blue-600" /><span className="font-medium text-gray-700">Settings</span></div><ChevronRight size={20} className="text-gray-300" /></button>
-        <button className="w-full flex items-center justify-between p-4 hover:bg-gray-50"><div className="flex items-center gap-3"><Shield size={20} className="text-purple-600" /><span className="font-medium text-gray-700">Safety Center</span></div><ChevronRight size={20} className="text-gray-300" /></button>
-      </div>
-      <button onClick={onLogout} className="w-full bg-white text-red-600 font-bold py-4 rounded-xl shadow-sm flex items-center justify-center gap-2 hover:bg-red-50"><LogOut size={20} /> Log Out</button>
-    </div>
-  </div>
-);
-
-// --- Chat View (Reused) ---
-const GroupChatView = ({ group, messages, onBack, currentUser, onReport, onSendMessage }: any) => {
-  const [inputText, setInputText] = useState('');
-  const [showVideoCall, setShowVideoCall] = useState(false);
+const GroupChatView = ({ group, messages, onSendMessage, onBack, currentUser, onReport, onAskForHelp }: { group: Group, messages: Message[], onSendMessage: (id: string, text: string, type?: 'text'|'gift') => void, onBack: () => void, currentUser: User, onReport: (name: string) => void, onAskForHelp: () => void }) => {
+  const [text, setText] = useState('');
+  const [showNudge, setShowNudge] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages]);
-  const handleSend = (text: string = inputText, type: 'text'|'gift' = 'text') => { onSendMessage(text, type); setInputText(''); };
-  if (showVideoCall) return <VideoCallView group={group} onClose={() => setShowVideoCall(false)} />;
+  
+  // Nudge Logic: Simulate a "long session" check
+  useEffect(() => {
+     // If user stays in the chat view for more than 10 seconds (simulating 30-45 mins), show nudge
+     const timer = setTimeout(() => {
+         setShowNudge(true);
+     }, 10000); 
+
+     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages]);
+
+  const handleSend = () => {
+    if (!text.trim()) return;
+    onSendMessage(group.id, text);
+    setText('');
+  };
+
   return (
-    <div className="h-full flex flex-col bg-[#e5ddd5]">
-      <div className="bg-white p-3 px-4 shadow-sm flex items-center gap-3 z-20">
-        <button onClick={onBack} className="text-blue-600"><ChevronRight className="rotate-180" size={28} /></button>
-        <img src={group.image} className="w-10 h-10 rounded-full bg-gray-200 object-cover" />
-        <div className="flex-1 cursor-pointer"><h3 className="font-bold text-gray-900 leading-tight">{group.name}</h3><p className="text-xs text-gray-500">{group.isDm ? 'Online' : `${group.memberCount} members`}</p></div>
-        <div className="flex items-center gap-1"><button onClick={() => setShowVideoCall(true)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition"><Video size={24} /></button></div>
+    <div className="flex flex-col h-full bg-gray-100 relative">
+      {showNudge && (
+          <div className="absolute top-16 left-4 right-4 z-30 bg-blue-600 text-white p-3 rounded-xl shadow-lg flex items-center justify-between animate-fade-in-down">
+             <div className="flex items-center gap-2">
+                 <Coffee size={20} />
+                 <div>
+                    <p className="font-bold text-sm">Time for a break?</p>
+                    <p className="text-xs text-blue-100">You've been active for a while. Stretch!</p>
+                 </div>
+             </div>
+             <button onClick={() => setShowNudge(false)} className="bg-white/20 p-1 rounded-full"><X size={16} /></button>
+          </div>
+      )}
+
+      <div className="bg-white p-3 shadow-sm flex items-center gap-3 z-10 border-b border-gray-200">
+        <button onClick={onBack}><ChevronRight className="rotate-180 text-gray-600" /></button>
+        <img src={group.image} className="w-10 h-10 rounded-full object-cover" />
+        <div className="flex-1">
+          <h3 className="font-bold text-gray-900 text-sm">{group.name}</h3>
+          <p className="text-xs text-gray-500">{group.course}</p>
+        </div>
+        <div className="flex gap-2">
+            <button onClick={onAskForHelp} className="bg-red-50 text-red-600 px-3 py-1.5 rounded-full text-xs font-bold border border-red-100 flex items-center gap-1 hover:bg-red-100">
+                <Shield size={12} /> Help
+            </button>
+            <button onClick={() => onReport(group.name)}><MoreVertical size={20} className="text-gray-400" /></button>
+        </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-3" ref={scrollRef}>
-        {messages.map((msg: Message) => {
-          const isMe = msg.senderId === currentUser.id;
-          return (
-            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[75%] rounded-2xl px-4 py-2 shadow-sm relative group ${isMe ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none'} ${msg.type === 'gift' ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white' : ''}`}>
-                 {!isMe && !group.isDm && <p className="text-[10px] font-bold text-orange-600 mb-1">{msg.senderName}</p>}
-                 {msg.type === 'gift' ? <div className="flex flex-col items-center py-2"><Gift size={32} className="mb-2 animate-bounce" /><p className="font-bold text-sm">Sent a resource gift!</p><p className="text-xs opacity-90">{msg.text}</p></div> : <p className="text-sm leading-relaxed">{msg.text}</p>}
-                 <span className={`text-[10px] block text-right mt-1 opacity-70 ${isMe || msg.type === 'gift' ? 'text-white' : 'text-gray-400'}`}>{msg.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-              </div>
-            </div>
-          );
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
+        {messages.map((msg) => {
+           const isMe = msg.senderId === currentUser.id;
+           const isSys = msg.isSystem;
+           if (isSys) return <div key={msg.id} className="text-center text-xs text-gray-400 my-2">{msg.text}</div>;
+           return (
+             <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                {!isMe && <div className="w-8 h-8 rounded-full bg-gray-300 mr-2 flex-shrink-0 overflow-hidden"><img src={`https://picsum.photos/seed/${msg.senderId}/100/100`} /></div>}
+                <div className={`max-w-[75%] p-3 rounded-2xl relative ${isMe ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none shadow-sm'}`}>
+                   {!isMe && <p className="text-[10px] font-bold opacity-50 mb-1">{msg.senderName}</p>}
+                   
+                   {msg.isToxic ? (
+                        <div className="filter blur-[3px] select-none hover:blur-none transition-all duration-300 cursor-pointer">
+                           <p className="text-sm">{msg.text}</p>
+                        </div>
+                   ) : msg.type === 'gift' ? (
+                       <div className="flex items-center gap-2"><Gift className="animate-bounce" /> Sent a Gift</div>
+                   ) : (
+                       <p className="text-sm">{msg.text}</p>
+                   )}
+
+                   {msg.isToxic && (
+                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <span className="bg-black/50 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-md">Sensitive Content</span>
+                       </div>
+                   )}
+                   
+                   <p className="text-[10px] opacity-50 text-right mt-1">{msg.timestamp.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
+                </div>
+             </div>
+           );
         })}
       </div>
-      <div className="p-3 bg-white flex items-center gap-2 pb-safe">
-        <button onClick={() => handleSend('Sent a small donation to support! ☕', 'gift')} className="text-pink-500 p-2 hover:bg-pink-50 rounded-full transition"><Gift size={24} /></button>
-        <div className="flex-1 bg-gray-100 rounded-full px-4 py-2 flex items-center"><input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder="Type a message..." className="bg-transparent flex-1 outline-none text-sm" /></div>
-        <button onClick={() => handleSend()} className={`p-3 rounded-full transition-all ${inputText.trim() ? 'bg-blue-600 text-white shadow-md transform scale-100' : 'bg-gray-200 text-gray-400 scale-95'}`}><Send size={20} className={inputText.trim() ? "translate-x-0.5" : ""} /></button>
+
+      <div className="p-3 bg-white border-t flex items-center gap-2 pb-safe">
+        {currentUser.isMuted ? (
+            <div className="w-full bg-red-50 text-red-600 p-3 rounded-xl text-center text-sm font-bold border border-red-100 flex items-center justify-center gap-2">
+                <MicOff size={16} /> You are temporarily muted.
+            </div>
+        ) : (
+            <>
+                <button className="text-gray-400 hover:text-blue-600"><Paperclip size={20} /></button>
+                <input 
+                value={text} 
+                onChange={e => setText(e.target.value)} 
+                onKeyDown={e => e.key === 'Enter' && handleSend()}
+                placeholder="Type a message..." 
+                className="flex-1 bg-gray-100 p-2.5 rounded-xl outline-none text-sm"
+                />
+                <button onClick={() => onSendMessage(group.id, 'Gift', 'gift')} className="text-pink-500 hover:scale-110 transition"><Gift size={24} /></button>
+                <button onClick={handleSend} className="bg-blue-600 text-white p-2.5 rounded-xl"><Send size={20} /></button>
+            </>
+        )}
       </div>
     </div>
   );
 };
 
-// VideoCallView logic remains similar but compacted
-const VideoCallView = ({ group, onClose }: { group: Group, onClose: () => void }) => {
+const SocialHubView = ({ posts, currentUser, onComment, onLike, onCreatePost }: { posts: Post[], currentUser: User, onComment: (post: Post) => void, onLike: (id: string) => void, onCreatePost: () => void }) => {
     return (
-        <div className="fixed inset-0 bg-gray-900 z-50 flex flex-col">
-            <div className="flex-1 flex items-center justify-center relative"><h2 className="text-white text-2xl font-bold animate-pulse">Connecting...</h2><button onClick={onClose} className="absolute top-4 left-4 text-white"><X size={32}/></button></div>
-            <div className="p-8 flex justify-center"><button onClick={onClose} className="p-6 bg-red-600 rounded-full"><Phone className="rotate-[135deg]" size={32} text-white /></button></div>
+        <div className="bg-gray-100 h-full overflow-y-auto pb-20 no-scrollbar">
+            <div className="bg-white p-4 sticky top-0 z-10 shadow-sm mb-2">
+                <h1 className="font-bold text-xl">Campus Feed</h1>
+            </div>
+            
+            <div onClick={onCreatePost} className="mx-4 mb-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 cursor-pointer hover:shadow-md transition">
+                <img src={currentUser.avatar} className="w-10 h-10 rounded-full object-cover border border-gray-100" />
+                <div className="flex-1 bg-gray-100 rounded-full px-4 py-2.5 text-sm text-gray-500 font-medium">
+                    Share your experience...
+                </div>
+                <ImageIcon className="text-green-500" size={24} />
+            </div>
+
+            <div className="space-y-3 px-4">
+                {posts.map(post => (
+                    <div key={post.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                        <div className="flex justify-between items-start mb-3">
+                            <div className="flex gap-3 items-center">
+                                <img src={post.userAvatar} className="w-10 h-10 rounded-full object-cover" />
+                                <div>
+                                    <h4 className="font-bold text-sm">{post.userName}</h4>
+                                    <p className="text-xs text-gray-500">{post.timestamp}</p>
+                                </div>
+                            </div>
+                            <button className="text-gray-400"><MoreVertical size={18} /></button>
+                        </div>
+                        
+                        {post.type === 'teammate_request' && (
+                             <div className="mb-3 flex gap-2 flex-wrap">
+                                 {post.tags?.map(tag => (
+                                     <span key={tag} className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-1 rounded-full">#{tag}</span>
+                                 ))}
+                             </div>
+                        )}
+
+                        <p className="text-sm text-gray-800 leading-relaxed mb-3">{post.content}</p>
+                        
+                        {post.imageUrl && (
+                            <img src={post.imageUrl} className="w-full h-48 object-cover rounded-xl mb-3" />
+                        )}
+
+                        <div className="flex items-center gap-6 border-t pt-3">
+                            <button onClick={() => onLike(post.id)} className={`flex items-center gap-2 transition text-sm font-medium ${post.isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}>
+                                <Heart size={18} fill={post.isLiked ? "currentColor" : "none"} /> {post.likes}
+                            </button>
+                            <button onClick={() => onComment(post)} className="flex items-center gap-2 text-gray-500 hover:text-blue-500 transition text-sm font-medium">
+                                <MessageCircle size={18} /> {post.comments}
+                            </button>
+                            <button className="flex items-center gap-2 text-gray-500 hover:text-green-500 transition text-sm font-medium ml-auto">
+                                <Send size={18} /> Share
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const CampusHubView = ({ onContact }: { onContact: (id: string) => void }) => {
+    return null;
+};
+
+const CampusHubViewWithProps = ({ onContact, confessions, onPostConfession, onLikeConfession }: any) => {
+    const [tab, setTab] = useState<'market'|'confessions'>('market');
+    return (
+        <div className="h-full flex flex-col bg-gray-50">
+             <div className="p-4 bg-white shadow-sm z-10 sticky top-0">
+                <div className="flex bg-gray-100 p-1 rounded-xl">
+                    <button onClick={() => setTab('market')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${tab === 'market' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>Marketplace</button>
+                    <button onClick={() => setTab('confessions')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${tab === 'confessions' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>Confessions</button>
+                </div>
+            </div>
+            <div className="flex-1 overflow-y-auto pb-20 no-scrollbar">
+                {tab === 'market' ? <MarketplaceView items={MOCK_MARKET_ITEMS} onContact={onContact} /> : <ConfessionView confessions={confessions} onPostClick={onPostConfession} onLike={onLikeConfession} />}
+            </div>
         </div>
     )
 }
+
+
+const ProfileView = ({ user, onLogout, onEditProfile, onNotifications, onPrivacy }: { user: User, onLogout: () => void, onEditProfile: () => void, onNotifications: () => void, onPrivacy: () => void }) => {
+    return (
+        <div className="h-full overflow-y-auto bg-gray-50 pb-20">
+            <div className="relative mb-16">
+                 <div className="h-32 bg-blue-600"></div>
+                 <div className="absolute -bottom-12 left-1/2 -translate-x-1/2">
+                     <img src={user.avatar} className="w-24 h-24 rounded-full border-4 border-white bg-gray-200 object-cover" />
+                 </div>
+            </div>
+            
+            <div className="text-center px-6 mb-6">
+                <h2 className="text-2xl font-bold">{user.firstName} {user.lastName}</h2>
+                <p className="text-gray-500">{user.school}</p>
+                <div className="flex justify-center gap-2 mt-2">
+                    <span className="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">{user.course}</span>
+                </div>
+            </div>
+
+            <div className="px-4 space-y-4">
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-around text-center">
+                    <div>
+                        <p className="text-2xl font-bold text-gray-900">12</p>
+                        <p className="text-xs text-gray-500 uppercase">Streak</p>
+                    </div>
+                    <div>
+                        <p className="text-2xl font-bold text-gray-900">85</p>
+                        <p className="text-xs text-gray-500 uppercase">Study Hrs</p>
+                    </div>
+                    <div>
+                        <p className="text-2xl font-bold text-gray-900">4.0</p>
+                        <p className="text-xs text-gray-500 uppercase">GPA Goal</p>
+                    </div>
+                </div>
+
+                <BadgesDisplay badgeIds={user.badges || []} />
+
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                    <h3 className="font-bold text-gray-900">Settings & Account</h3>
+                    
+                    <button onClick={onEditProfile} className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
+                        <span className="flex items-center gap-3"><UserIcon size={20} className="text-gray-500" /> Edit Profile</span>
+                        <ChevronRight size={16} className="text-gray-400" />
+                    </button>
+                    <button onClick={onNotifications} className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
+                        <span className="flex items-center gap-3"><Bell size={20} className="text-gray-500" /> Notifications</span>
+                        <ChevronRight size={16} className="text-gray-400" />
+                    </button>
+                    <button onClick={onPrivacy} className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
+                        <span className="flex items-center gap-3"><Shield size={20} className="text-gray-500" /> Privacy & Security</span>
+                        <ChevronRight size={16} className="text-gray-400" />
+                    </button>
+
+                    <button onClick={onLogout} className="w-full flex items-center gap-3 p-3 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 mt-4 transition">
+                        <LogOut size={20} /> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- Main App ---
+
+const App = () => {
+  const [view, setView] = useState<AppView>(AppView.SPLASH);
+  const [currentTab, setCurrentTab] = useState<MainTab>(MainTab.HOME);
+  const [user, setUser] = useState<User | null>(null);
+  const [emailInput, setEmailInput] = useState('');
+  const [firstName, setFirstName] = useState(''); // New State for Registration
+  const [selectedSchool, setSelectedSchool] = useState(''); // New State for Registration
+  const [selectedCourse, setSelectedCourse] = useState(''); // New State for Registration
+  
+  // Data State
+  const [groups, setGroups] = useState<Group[]>(MOCK_GROUPS);
+  const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
+  const [confessions, setConfessions] = useState<Confession[]>(MOCK_CONFESSIONS);
+  const [reports, setReports] = useState<Report[]>(MOCK_REPORTS);
+  const [activeGroup, setActiveGroup] = useState<Group | null>(null);
+  const [messagesStore, setMessagesStore] = useState<Record<string, Message[]>>({ '1': [], '2': [], '3': [], 'dm_1': [] });
+  
+  // Timetable State
+  const [timetable, setTimetable] = useState<TimetableEntry[]>(MOCK_TIMETABLE);
+  const [semesterEnd, setSemesterEnd] = useState<string>('2024-12-20');
+  const [todos, setTodos] = useState<Todo[]>(MOCK_TODOS);
+
+  // Modals & UI
+  const [commentPost, setCommentPost] = useState<Post | null>(null);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportTarget, setReportTarget] = useState('');
+  const [timetableModalOpen, setTimetableModalOpen] = useState(false);
+  const [createGroupModalOpen, setCreateGroupModalOpen] = useState(false);
+  const [postConfessionModalOpen, setPostConfessionModalOpen] = useState(false);
+  const [createPostModalOpen, setCreatePostModalOpen] = useState(false); // New State
+  const [viewingProfile, setViewingProfile] = useState<User | null>(null);
+  const [activeClassEntry, setActiveClassEntry] = useState<TimetableEntry | null>(null);
+  const [isRegistering, setIsRegistering] = useState(false); // For Login Toggle
+
+  // Profile Settings Modals
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+
+  // Focus Mode State
+  const [focusConfigOpen, setFocusConfigOpen] = useState(false);
+  const [focusEndTime, setFocusEndTime] = useState<number | null>(null);
+
+  // Derived Focus State
+  const isActiveFocus = focusEndTime !== null && Date.now() < focusEndTime;
+
+  // Handlers
+  const handleLogin = (e: React.FormEvent) => { 
+      e.preventDefault(); 
+      if (emailInput === ADMIN_EMAIL) {
+          setUser({ 
+              id: 'admin_1', 
+              firstName: 'Admin', 
+              email: ADMIN_EMAIL, 
+              role: 'ADMIN', 
+              school: 'StudyConnect HQ', 
+              course: 'Moderation', 
+              level: 'Staff', 
+              avatar: 'https://ui-avatars.com/api/?name=Admin&background=111827&color=fff', 
+              warnings: 0, 
+              isMuted: false, 
+              isBanned: false,
+              points: 0,
+              badges: []
+          });
+          setView(AppView.ADMIN_PORTAL);
+      } else {
+          // Dynamic User Creation Logic
+          let finalName = 'Student';
+          let finalSchool = 'University of Ghana';
+          let finalCourse = 'General';
+
+          if (isRegistering) {
+             finalName = firstName || 'Student';
+             finalSchool = selectedSchool || 'Unknown School';
+             finalCourse = selectedCourse || 'General';
+          } else {
+             // Try to parse name from email if logging in
+             if (emailInput.includes('@')) {
+                const namePart = emailInput.split('@')[0];
+                finalName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+             }
+          }
+
+          setUser({ 
+              id: `u_${Date.now()}`, 
+              firstName: finalName, 
+              email: emailInput || 'user@study.com', 
+              role: 'STUDENT',
+              school: finalSchool, 
+              course: finalCourse, 
+              level: '100', 
+              avatar: `https://ui-avatars.com/api/?name=${finalName}&background=random`, 
+              streak: 0, // Reset for new user
+              warnings: 0,
+              isMuted: false,
+              isBanned: false,
+              points: 100, // Welcome bonus
+              badges: []
+          }); 
+          setView(AppView.MAIN); 
+      }
+  };
+  
+  const handleSendMessage = (groupId: string, text: string, type: 'text'|'gift' = 'text') => {
+      // 1. Check if user is muted
+      if (user?.isMuted) {
+          alert("You are currently muted due to repeated policy violations.");
+          return;
+      }
+
+      // 2. Auto-Moderation Filter
+      const isToxic = TOXIC_WORDS.some(w => text.toLowerCase().includes(w));
+      
+      if (isToxic) {
+          // Increment warnings
+          const newWarnings = (user?.warnings || 0) + 1;
+          const isNowMuted = newWarnings >= 3;
+          
+          setUser(prev => prev ? ({ ...prev, warnings: newWarnings, isMuted: isNowMuted }) : null);
+
+          // Alert user
+          if (isNowMuted) {
+              alert(`🚫 You have been MUTED for repeated offensive language. (Warnings: ${newWarnings})`);
+          } else {
+              alert(`⚠️ Warning: Offensive language detected. Repeated violations will result in a mute. (Warnings: ${newWarnings}/3)`);
+          }
+      }
+
+      // 3. Send Message (Even if toxic, we send it but mark it as toxic for blurring)
+      const newMessage: Message = { 
+          id: `msg_${Date.now()}`, 
+          senderId: user!.id, 
+          senderName: user!.firstName, 
+          text, 
+          type, 
+          timestamp: new Date(),
+          isToxic // Mark message as toxic
+      };
+
+      setMessagesStore(prev => ({ ...prev, [groupId]: [...(prev[groupId] || []), newMessage] }));
+      
+      // Update group last message (blurred if toxic)
+      setGroups(groups.map(g => g.id === groupId ? { ...g, lastMessage: isToxic ? 'Sensitive Content' : (type === 'gift' ? 'Sent a gift' : text), lastMessageTime: new Date() } : g));
+
+      // 4. Gamification Reward (Simulated)
+      if (!isToxic && Math.random() > 0.7) {
+         const pointsEarned = 5;
+         setUser(prev => prev ? ({ ...prev, points: prev.points + pointsEarned }) : null);
+         // In a real app, show a toast here "You earned 5 points!"
+      }
+  };
+
+  const handleSubmitReport = (reason: string, description: string) => {
+      // Create a new report object
+      const newReport: Report = {
+          id: `rep_${Date.now()}`,
+          reporterId: user?.id || 'unknown',
+          reporterName: user?.firstName || 'Anonymous',
+          offenderName: reportTarget, // In real app, this would be an ID
+          content: description,
+          reason: reason,
+          status: 'PENDING',
+          timestamp: new Date(),
+          severity: reason === 'Sexual Misconduct' ? 'HIGH' : 'MEDIUM'
+      };
+      setReports([newReport, ...reports]);
+  };
+
+  const handleUpdatePost = (updatedPost: Post) => {
+      setPosts(posts.map(p => p.id === updatedPost.id ? updatedPost : p));
+      setCommentPost(updatedPost); // Keep modal synced
+  };
+
+  const handleStartChat = (targetId: string, name = 'User', avatar = '') => {
+      let dm = groups.find(g => g.isDm && g.dmUserId === targetId);
+      if (!dm) {
+          dm = { id: `dm_${targetId}`, name: name, description: 'Direct Message', memberCount: 2, course: 'General', image: avatar || 'https://picsum.photos/seed/dm/100/100', isDm: true, dmUserId: targetId, lastMessage: 'Started a chat', lastMessageTime: new Date() };
+          setGroups([dm, ...groups]);
+          setMessagesStore(prev => ({...prev, [dm!.id]: [] }));
+      }
+      setViewingProfile(null); // Close profile if open
+      setActiveGroup(dm);
+      setCurrentTab(MainTab.STUDY); // Switch to where chat is
+  };
+
+  const handleCreateGroup = (data: any) => {
+      const newGroup: Group = {
+          id: `g_${Date.now()}`,
+          name: data.name,
+          description: data.description,
+          course: data.course,
+          memberCount: 1,
+          image: `https://picsum.photos/seed/${data.name}/100/100`,
+          lastMessage: 'Group created',
+          lastMessageTime: new Date(),
+          points: 0
+      };
+      setGroups([newGroup, ...groups]);
+      setMessagesStore(prev => ({ ...prev, [newGroup.id]: [{ id: 'sys_1', senderId: 'sys', senderName: 'System', text: 'Welcome to your new group!', timestamp: new Date(), isSystem: true, type: 'text' }] }));
+      setCreateGroupModalOpen(false);
+      setActiveGroup(newGroup);
+  };
+
+  const handleCreateConfession = (content: string) => {
+      const newConfession: Confession = {
+          id: `c_${Date.now()}`,
+          content: content,
+          timestamp: 'Just now',
+          likes: 0,
+          isLiked: false,
+          comments: 0,
+          school: user?.school || 'Unknown'
+      };
+      setConfessions([newConfession, ...confessions]);
+      setPostConfessionModalOpen(false);
+  };
+
+  const handleCreatePost = (content: string, hasImage: boolean) => {
+      const newPost: Post = {
+          id: `p_${Date.now()}`,
+          userId: user?.id || 'unknown',
+          userName: user?.firstName || 'Unknown',
+          userAvatar: user?.avatar || '',
+          content: content,
+          imageUrl: hasImage ? `https://picsum.photos/seed/${Date.now()}/600/400` : undefined,
+          likes: 0,
+          isLiked: false,
+          comments: 0,
+          commentsList: [],
+          timestamp: 'Just now',
+          type: 'regular'
+      };
+      setPosts([newPost, ...posts]);
+      setCreatePostModalOpen(false);
+  };
+
+  const handleLikeConfession = (id: string) => {
+      setConfessions(confessions.map(c => {
+          if (c.id === id) {
+              const isLiked = !c.isLiked;
+              return { ...c, isLiked, likes: isLiked ? c.likes + 1 : c.likes - 1 };
+          }
+          return c;
+      }));
+  };
+
+  const handleLikePost = (id: string) => {
+      setPosts(posts.map(p => {
+          if (p.id === id) {
+              const isLiked = !p.isLiked;
+              return { ...p, isLiked, likes: isLiked ? p.likes + 1 : p.likes - 1 };
+          }
+          return p;
+      }));
+  };
+
+  const handleToggleReminder = (entryId: string) => {
+      const updatedTimetable = timetable.map(t => t.id === entryId ? { ...t, reminderEnabled: !t.reminderEnabled } : t);
+      setTimetable(updatedTimetable);
+      // Also update the activeClassEntry if it matches, so the modal updates immediately
+      if (activeClassEntry && activeClassEntry.id === entryId) {
+          setActiveClassEntry({ ...activeClassEntry, reminderEnabled: !activeClassEntry.reminderEnabled });
+      }
+  };
+
+  // Focus Mode Handlers
+  const handleStartFocus = (mins: number) => {
+      const end = Date.now() + mins * 60 * 1000;
+      setFocusEndTime(end);
+      setFocusConfigOpen(false);
+  };
+
+  const handleEndFocus = () => {
+      setFocusEndTime(null);
+  };
+
+  // Admin Actions
+  const handleDismissReport = (reportId: string) => {
+      setReports(reports.filter(r => r.id !== reportId));
+  };
+  
+  const handleBanUser = (offenderId: string, reportId: string) => {
+      alert(`User banned successfully based on report ${reportId}`);
+      handleDismissReport(reportId);
+  };
+
+  const handleWarnReporter = (reporterId: string, reportId: string) => {
+      alert(`Warning sent to reporter of report ${reportId} for false reporting.`);
+      handleDismissReport(reportId);
+  };
+
+  // Views
+  if (view === AppView.SPLASH) return <Splash onComplete={() => setView(AppView.TERMS)} />;
+  if (view === AppView.TERMS) return <Terms onAgree={() => setView(AppView.AUTH)} onDecline={() => setView(AppView.SPLASH)} />;
+  if (view === AppView.AUTH) return (
+      <div className="min-h-screen w-full bg-gradient-to-br from-indigo-50 to-blue-100 flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-slide-up">
+              <div className="bg-blue-600 p-8 text-center relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                  <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg rotate-3">
+                      <BookOpen className="text-blue-600 w-10 h-10" />
+                  </div>
+                  <h2 className="text-3xl font-bold text-white tracking-tight">StudyConnect</h2>
+                  <p className="text-blue-100 mt-2">Your Campus, Your Community.</p>
+              </div>
+              
+              <div className="p-8">
+                  <div className="flex bg-gray-100 p-1 rounded-xl mb-6">
+                      <button onClick={() => setIsRegistering(false)} className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${!isRegistering ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500'}`}>Login</button>
+                      <button onClick={() => setIsRegistering(true)} className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${isRegistering ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500'}`}>Register</button>
+                  </div>
+
+                  <form onSubmit={handleLogin} className="space-y-4">
+                      {isRegistering && (
+                          <div className="relative">
+                              <UserIcon className="absolute left-4 top-3.5 text-gray-400" size={20} />
+                              <input 
+                                  type="text" 
+                                  placeholder="First Name" 
+                                  required={isRegistering}
+                                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition" 
+                                  value={firstName}
+                                  onChange={(e) => setFirstName(e.target.value)}
+                              />
+                          </div>
+                      )}
+                      
+                      <div className="relative">
+                          <Mail className="absolute left-4 top-3.5 text-gray-400" size={20} />
+                          <input 
+                            type="email" 
+                            placeholder="Email (admin@study.com for Admin)" 
+                            required 
+                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
+                            value={emailInput}
+                            onChange={(e) => setEmailInput(e.target.value)}
+                          />
+                      </div>
+                      
+                      <div className="relative">
+                          <Lock className="absolute left-4 top-3.5 text-gray-400" size={20} />
+                          <input type="password" placeholder="Password (admin)" required className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition" />
+                      </div>
+
+                      {isRegistering && (
+                        <>
+                           <select 
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none text-gray-600"
+                                value={selectedSchool}
+                                onChange={(e) => setSelectedSchool(e.target.value)}
+                           >
+                               <option value="">Select School</option>
+                               {SCHOOLS.map(s => <option key={s} value={s}>{s}</option>)}
+                           </select>
+                           <select 
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none text-gray-600"
+                                value={selectedCourse}
+                                onChange={(e) => setSelectedCourse(e.target.value)}
+                           >
+                               <option value="">Select Course</option>
+                               {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
+                           </select>
+                        </>
+                      )}
+
+                      {!isRegistering && (
+                          <div className="text-right">
+                              <button type="button" className="text-xs font-bold text-blue-600 hover:text-blue-700">Forgot Password?</button>
+                          </div>
+                      )}
+
+                      <button className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-700 hover:shadow-xl transition transform active:scale-95 flex justify-center items-center gap-2">
+                          {isRegistering ? 'Create Account' : 'Sign In'} <ArrowRight size={20} />
+                      </button>
+                  </form>
+              </div>
+          </div>
+      </div>
+  );
+
+  if (view === AppView.ADMIN_PORTAL) {
+      return (
+          <AdminPortal 
+            onLogout={() => { setView(AppView.AUTH); setEmailInput(''); }} 
+            reports={reports}
+            onDismissReport={handleDismissReport}
+            onBanUser={handleBanUser}
+            onWarnReporter={handleWarnReporter}
+          />
+      );
+  }
+
+  const renderContent = () => {
+      if (activeGroup) return <GroupChatView group={activeGroup} messages={messagesStore[activeGroup.id] || []} onSendMessage={handleSendMessage} onBack={() => setActiveGroup(null)} currentUser={user!} onReport={(n: string) => { setReportTarget(n); setReportModalOpen(true); }} onAskForHelp={() => { setReportTarget('Emergency Help'); setReportModalOpen(true); }} />;
+      
+      // Focus Mode Lockout Logic
+      if (isActiveFocus && (currentTab === MainTab.SOCIAL || currentTab === MainTab.CAMPUS)) {
+          return <FocusLockedView endTime={focusEndTime!} onEndEarly={handleEndFocus} />;
+      }
+
+      switch(currentTab) {
+          case MainTab.HOME: return <HomeView user={user!} timetable={timetable} onManageTimetable={() => setTimetableModalOpen(true)} onClassClick={setActiveClassEntry} semesterEnd={semesterEnd} suggestions={MOCK_USERS} onConnect={setViewingProfile} onStartFocus={() => setFocusConfigOpen(true)} />;
+          case MainTab.STUDY: return <StudyHubView groups={groups} onGroupClick={setActiveGroup} onCreateGroup={() => setCreateGroupModalOpen(true)} />;
+          case MainTab.SOCIAL: return <SocialHubView posts={posts} currentUser={user!} onComment={(p) => setCommentPost(p)} onLike={handleLikePost} onCreatePost={() => setCreatePostModalOpen(true)} />;
+          case MainTab.CAMPUS: return <CampusHubViewWithProps onContact={(id: string) => handleStartChat(id, 'Seller')} confessions={confessions} onPostConfession={() => setPostConfessionModalOpen(true)} onLikeConfession={handleLikeConfession} />;
+          case MainTab.PROFILE: return <ProfileView user={user!} onLogout={() => setView(AppView.AUTH)} onEditProfile={() => setEditProfileOpen(true)} onNotifications={() => setNotificationsOpen(true)} onPrivacy={() => setPrivacyOpen(true)} />;
+          default: return <div>Error</div>;
+      }
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+        <ReportModal 
+            isOpen={reportModalOpen} 
+            onClose={() => setReportModalOpen(false)} 
+            targetName={reportTarget} 
+            onSubmitReport={handleSubmitReport}
+        />
+        {commentPost && <CommentModal post={commentPost} currentUser={user!} onClose={() => setCommentPost(null)} onUpdatePost={handleUpdatePost} />}
+        {timetableModalOpen && <TimetableModal onClose={() => setTimetableModalOpen(false)} timetable={timetable} onUpdate={setTimetable} semesterEnd={semesterEnd} onUpdateSemesterEnd={setSemesterEnd} />}
+        {activeClassEntry && <ClassDetailModal entry={activeClassEntry} onClose={() => setActiveClassEntry(null)} todos={todos} onUpdateTodos={setTodos} onToggleReminder={handleToggleReminder} />}
+        {createGroupModalOpen && <CreateGroupModal onClose={() => setCreateGroupModalOpen(false)} onCreate={handleCreateGroup} />}
+        {postConfessionModalOpen && <PostConfessionModal onClose={() => setPostConfessionModalOpen(false)} onPost={handleCreateConfession} />}
+        {createPostModalOpen && <CreatePostModal user={user!} onClose={() => setCreatePostModalOpen(false)} onCreate={handleCreatePost} />}
+        {viewingProfile && <UserProfileModal user={viewingProfile} onClose={() => setViewingProfile(null)} onMessage={() => handleStartChat(viewingProfile.id, viewingProfile.firstName, viewingProfile.avatar)} />}
+        
+        {editProfileOpen && <EditProfileModal user={user!} onClose={() => setEditProfileOpen(false)} onSave={(u) => setUser(u)} />}
+        {notificationsOpen && <NotificationsModal onClose={() => setNotificationsOpen(false)} />}
+        {privacyOpen && <PrivacyModal onClose={() => setPrivacyOpen(false)} />}
+        {focusConfigOpen && <FocusConfigModal isOpen={focusConfigOpen} onClose={() => setFocusConfigOpen(false)} onStart={handleStartFocus} />}
+
+        <div className="flex-1 overflow-hidden relative">{renderContent()}</div>
+        
+        {!activeGroup && (
+            <nav className="bg-white border-t border-gray-200 pb-safe pt-2 px-2 shadow-sm z-40">
+                <div className="flex justify-between items-center max-w-md mx-auto">
+                    <NavIcon icon={<HomeIcon />} label="Home" active={currentTab === MainTab.HOME} onClick={() => setCurrentTab(MainTab.HOME)} />
+                    <NavIcon icon={<BookOpen />} label="Study" active={currentTab === MainTab.STUDY} onClick={() => setCurrentTab(MainTab.STUDY)} />
+                    <NavIcon icon={<Users />} label="Social" active={currentTab === MainTab.SOCIAL} onClick={() => setCurrentTab(MainTab.SOCIAL)} />
+                    <NavIcon icon={<MapPin />} label="Campus" active={currentTab === MainTab.CAMPUS} onClick={() => setCurrentTab(MainTab.CAMPUS)} />
+                    <NavIcon icon={<UserIcon />} label="Profile" active={currentTab === MainTab.PROFILE} onClick={() => setCurrentTab(MainTab.PROFILE)} />
+                </div>
+            </nav>
+        )}
+    </div>
+  );
+};
+
+// --- Sub Views ---
+
+const NavIcon = ({ icon, label, active, onClick }: any) => (
+    <button onClick={onClick} className={`flex flex-col items-center gap-1 p-2 w-16 transition-all ${active ? 'text-blue-600 -translate-y-1' : 'text-gray-400'}`}>
+        {React.cloneElement(icon, { size: 24, strokeWidth: active ? 2.5 : 2 })}
+        <span className="text-[10px] font-medium">{label}</span>
+    </button>
+);
 
 export default App;
